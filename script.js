@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.158.0/examples/jsm/controls/OrbitControls.js';
+import GUI from 'lil-gui';
+import gsap from 'gsap';
 
 // Canvas
 const canvas = document.querySelector('canvas.webgl');
@@ -6,52 +9,63 @@ const canvas = document.querySelector('canvas.webgl');
 // Scene
 const scene = new THREE.Scene();
 
-// Create an empty BufferGeometry
-const geometry = new THREE.BufferGeometry();
+/**
+ * Debug UI
+ */
+const gui = new GUI();
 
-// Define the number of triangles
-const triangleCount = 50; // Number of triangles
-const positionsArray = new Float32Array(triangleCount * 3 * 3); // Each triangle has 3 vertices, each vertex has x, y, z
+// Parameters for debugging
+const parameters = {
+    color: 0xff0000, // Initial color
+    elevation: 0,    // Initial elevation
+    visible: true,   // Mesh visibility
+    spin: () => {
+        gsap.to(mesh.rotation, { duration: 1, y: mesh.rotation.y + Math.PI * 2 });
+    },
+};
 
-// Fill the positionsArray with random values
-for (let i = 0; i < triangleCount * 3 * 3; i++) {
-    positionsArray[i] = (Math.random() - 0.5) * 4; // Random values between -2 and 2 for a larger spread
-}
-
-// Create the attribute and name it 'position'
-const positionsAttribute = new THREE.BufferAttribute(positionsArray, 3);
-geometry.setAttribute('position', positionsAttribute);
-
-// Create a material
-const material = new THREE.MeshBasicMaterial({
-    color: 0xff0000,
-    wireframe: true // Enable wireframe to show the triangles' edges
-});
-
-// Create the mesh
+// Box geometry and material
+const geometry = new THREE.BoxGeometry(1, 1, 1);
+const material = new THREE.MeshBasicMaterial({ color: parameters.color });
 const mesh = new THREE.Mesh(geometry, material);
 scene.add(mesh);
+
+// GUI controls
+gui.add(parameters, 'elevation', -3, 3, 0.1).name('Elevation').onChange(() => {
+    mesh.position.y = parameters.elevation;
+});
+gui.add(parameters, 'visible').name('Visible').onChange(() => {
+    mesh.visible = parameters.visible;
+});
+gui.add(material, 'wireframe').name('Wireframe');
+gui.addColor(parameters, 'color').name('Color').onChange(() => {
+    material.color.set(parameters.color);
+});
+gui.add(parameters, 'spin').name('Spin');
 
 // Sizes
 const sizes = {
     width: window.innerWidth,
-    height: window.innerHeight
+    height: window.innerHeight,
 };
 
 // Camera
 const camera = new THREE.PerspectiveCamera(75, sizes.width / sizes.height, 0.1, 100);
-camera.position.z = 5; // Adjust camera position to fit the scene
+camera.position.z = 3;
 scene.add(camera);
 
+// Controls
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+
 // Renderer
-const renderer = new THREE.WebGLRenderer({
-    canvas: canvas
-});
+const renderer = new THREE.WebGLRenderer({ canvas });
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-// Handle resize
+// Handle window resize
 window.addEventListener('resize', () => {
+    // Update sizes
     sizes.width = window.innerWidth;
     sizes.height = window.innerHeight;
 
@@ -66,14 +80,13 @@ window.addEventListener('resize', () => {
 
 // Animation loop
 const tick = () => {
-    // Optional: Add rotation for dynamic visuals
-    mesh.rotation.x += 0.01;
-    mesh.rotation.y += 0.01;
+    // Update controls
+    controls.update();
 
-    // Render the scene
+    // Render scene
     renderer.render(scene, camera);
 
-    // Call tick again on the next frame
+    // Request next frame
     window.requestAnimationFrame(tick);
 };
 
